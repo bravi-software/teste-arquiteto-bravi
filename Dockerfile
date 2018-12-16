@@ -115,3 +115,13 @@ COPY --from=build /usr/src/app/target/spring-boot-sample-hateoas-2.0.1.RELEASE.j
 #============================================================================================
 ENTRYPOINT exec java ${JAVA_OPTS} ${DEBUG_OPTS} -Djava.security.egd=file:/dev/./urandom -jar /app.jar
 
+#============================================================================================
+# HEALTHCHECK --interval=[duração em segundos] --timeout=[duração em segundos]
+# Referência: https://docs.docker.com/engine/reference/builder/#healthcheck
+# 
+# Diz ao Docker como testar um container para verificar se ele ainda está funcionando. Isso 
+# pode detectar casos como um servidor web que está preso em um loop infinito e incapaz de 
+# lidar com novas conexões, mesmo que o processo do servidor ainda esteja em execução.
+#============================================================================================
+HEALTHCHECK --interval=30s --timeout=30s CMD curl -f http://127.0.0.1:8090/actuator/health || exit 1
+
