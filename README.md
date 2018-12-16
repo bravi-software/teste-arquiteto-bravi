@@ -10,6 +10,9 @@ Tabela de conteúdo
   - [Tarefa 1: Migrar a persistência para Postgresql ou MySQL](#tarefa-1:-migrar-a-persistência-para-postgresql-ou-mysql)
   - [Tarefa 2: Empacotar a aplicação usando Docker e implantá-la usando uma ferramenta de orquestração compatível com Docker](#tarefa-2:-empacotar-a-aplicação-usando-docker-e-implantá-la-usando-uma-ferramenta-de-orquestração-compatível-com-Docker)
   - [Tarefa 3: Implementar atualização sem afetar disponibilidade usando Docker em uma ferramenta de orquestração compatível com Docker](#tarefa-3:-implementar-atualização-sem-afetar-disponibilidade-usando-docker-em-uma-ferramenta-de-orquestração-compatível-com-docker)
+- [Sugestões](#sugestões)
+  - [Implementar mecanismo de monitoramento de health check do serviços](#implementar-mecanismo-de-monitoramento-de-health-check-do-serviços)
+  - [Automatizar o deploy utilizando alguma ferramenta para CI/CD](#automatizar-o-deploy-utilizando-alguma-ferramenta-para-CI/CD)
 - [Referências](#referências)
 
 ## Pré-requisitos
@@ -185,6 +188,62 @@ docker stack deploy --compose-file docker-stack.yml BRAVI
 
 >**Nota:** Ignore o warning exibido durante a atualização do serviço, pois isso é devido a não configuração de um registry (fora do escopo da tarefa), sendo necessário em ambiente clusterizado.
 
+## Sugestões
+
+Existem diversas maneiras de atender os itens descritos abaixo, porém vou sugerir apenas procedimentos e ferramentas que tenho vivência profissional.
+
+### Implementar mecanismo de monitoramento de health check do serviços
+
+1) O sistema deve disparar um alerta para o responsável informando que ele se encontra inoperante e qual possível motivo ex: falta de conexão com banco de dados.
+
+Hoje em dia esse tipo de serviço é chamado de **Status Page**, onde é exibida uma página com o status de todos os endpoints configurados para monitoramento. Nessas ferramentas é possível configurar os tipos de falha que deseja tornar pública ou privada, bem como a lista de pessoas que serão notificadas (Slack, E-mail, SMS, entre outros) em caso de falha ou recuperação. Abaixo estão algumas soluções (pagas e opensource) nesse segmento:
+
+**Soluções pagas**
+- [Statuspage](https://www.statuspage.io/)
+- [Statuspal](https://statuspal.io/)
+- [Status.io](https://status.io/)
+
+**Soluções opensource**
+- [Cachet](https://cachethq.io/)
+- [Staytus](https://staytus.co/)
+
+2) Assim que o sistema se recuperar, um alerta também deve ser enviado informando o novo status.
+
+A solução proposta/descrita no item anterior atende essa situação.
+
+3) Se existir um centralizador de logs, seria interessante o alerta conter um review das últimas X linhas de log ou um link para visualizar os logs.
+Os logs poderiam ser coletados com o [FileBeat](https://www.elastic.co/products/beats/filebeat) e armazenados no [Elasticsearch](https://www.elastic.co/products/elasticsearch), onde sua visualização se daria pelo [Kibana](https://www.elastic.co/products/kibana). Com o kibana disponível, poderia utilizar sua própria API para montar a query responsável por capturar os logs, especificando os containers com falha e data/hora do evento.
+
+O envio poderia ser feito a partir das ferramentas já citadas ou da criação de um script para isso.
+
+### Automatizar o deploy utilizando alguma ferramenta para CI/CD
+
+Isso pode ser feito através da configuração de pipeline em ferramentas de automação, criando estágios, onde cada estágio é responsável por executar uma determinada tarefa. O fluxo mais básico de um pipeline consiste em:
+
+- **Checkout:** Baixa o código fonte do projeto a partir de um repositório;
+- **Build:** Constrói os artefatos da aplicação, empacotando-a no formato da linguagem (por exemplo `.jar`) e gera sua respectiva imagem docker, publicando-a no repositório de imagens da organização;
+- **Test:** Testa a imagem publicada, baixando-a e executando seus respectivos testes. Nesse momento é possível configurar a interrupção do pipeline em caso de falha, evitando a implantação de aplicações quebradas;
+- **Release:** Com a imagem testada, baixamos e a rotulamos para uma versão estável, publicando-a novamente para o repositório de imagens;
+- **Deploy staging:** Implanta a imagem estável no ambiente de homologação, alertando as pessoas envolvidas que uma nova atualização da aplicação está disponível; e
+- **Deploy production:** Após a homologação ter sido realizada, a implantação da imagem pode ser disponibilizada no ambiente de produção manualmente, bastando a pessoa responsável proceder ou não com a ação.
+
+Exemplo de pipelines configurados em alguns projetos meus:
+
+**Gitlab CI**
+![Página com pipeline configurado no Gitlab CI](docs/images/Sugestao-Pagina_com_pipeline_configurado_no_GitlabCI.png)
+
+**Jenkins**
+![Página com pipeline configurado no Jenkins](docs/images/Sugestao-Pagina_com_pipeline_configurado_no_Jenkins.png)
+
+1) Um deploy deve ser disparado assim que um push ocorrer para uma branch X.
+Basta configurar um `webhook` no repositório, especificando a URL do serviço responsável pela automação do deploy. Lembre-se que a maioria das ferramentas de automação (Jenkins, Gitlab CI, Circle CI, Travis CI, CodeShip, entre outras) permite configurar sua execução baseada em branches.
+
+2) Se possível disponibilizar deploys de branchs diferentes para ambientes diferentes, como por exemplo: a branch master realizando deploy para produção e a branch develop/hmg para um ambiente de homologação.
+Isso é possível em qualquer ferramenta, bastando configurar no estágio responsável pelo deploy, que se o código baixado for originado a partir de uma branch em específico, execute o shell script necessário para implantação naquele ambiente.
+
+3) O Deploy só deve ser concluído se todos os testes existentes passarem com sucesso.
+Basta realizar a configuração no estágio de **Test**, conforme descrito no início dessa seção.
+
 ## Referências
 
 - [Git - Documentação](https://git-scm.com/doc)
@@ -194,4 +253,6 @@ docker stack deploy --compose-file docker-stack.yml BRAVI
 - [Docker Swarm - Documentação](https://docs.docker.com/engine/swarm/)
 - [PostgreSQL - Documentação](https://www.postgresql.org/docs/10/index.html)
 - [PostgreSQL - Imagem oficial no Docker Store](https://docs.docker.com/samples/library/postgres/)
+- [Gitlab CI - Documentação](https://docs.gitlab.com/ce/ci/)
+- [Jenkins Pipeline - Documentação](https://jenkins.io/doc/book/pipeline/)
 
