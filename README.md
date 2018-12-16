@@ -9,6 +9,7 @@ Tabela de conteúdo
 - [Tarefas](#tarefas)
   - [Tarefa 1: Migrar a persistência para Postgresql ou MySQL](#tarefa-1:-migrar-a-persistência-para-postgresql-ou-mysql)
   - [Tarefa 2: Empacotar a aplicação usando Docker e implantá-la usando uma ferramenta de orquestração compatível com Docker](#tarefa-2:-empacotar-a-aplicação-usando-docker-e-implantá-la-usando-uma-ferramenta-de-orquestração-compatível-com-Docker)
+  - [Tarefa 3: Implementar atualização sem afetar disponibilidade usando Docker em uma ferramenta de orquestração compatível com Docker](#tarefa-3:-implementar-atualização-sem-afetar-disponibilidade-usando-docker-em-uma-ferramenta-de-orquestração-compatível-com-docker)
 - [Referências](#referências)
 
 ## Pré-requisitos
@@ -135,6 +136,54 @@ watch -n 1 curl -I http://127.0.0.1:8090/swagger-ui.html
 ```
 
 ![Console com a saída do monitoramento da aplicação quando simulado uma queda](docs/images/Tarefa2-Console_com_a_saida_do_monitoramento_da_aplicacao_quando_simulado_uma_queda.png)
+
+### Tarefa 3: Implementar atualização sem afetar disponibilidade usando Docker em uma ferramenta de orquestração compatível com Docker
+
+Para realizar essa tarefa, será preciso ajustar alguns parâmetros de configurações do **.yml**.
+
+**Atenção**: Tenha certeza que o container do PostgreSQL está em execução, conforme descrito na tarefa 2.
+
+1) A partir do diretório raiz do projeto, execute os comandos abaixo para gerar a imagem da aplicação e na sequência implantá-la como serviço.
+
+```shell
+# Constrói a imagem docker da aplicação
+docker build --tag spring-boot-sample-hateoas:1.0.0 .
+
+# Execute o comando abaixo para implantar a aplicação como serviço
+docker stack deploy --compose-file docker-stack.yml BRAVI
+```
+
+![Console com a confirmação da criação do serviço da aplicação](docs/images/Tarefa3-Console_com_a_confirmacao_da_criacao_do_servico_da_aplicacao.png)
+
+2) Antes de prosseguir com a atualização da aplicação, execute os comandos a seguir em terminais diferentes, permitindo o monitoramento do estado da aplicação.
+
+```shell
+# Lista todos os containers em execução (refresh a cada segundo)
+watch -n 1 docker service ps BRAVI_spring-boot-sample-hateoas
+
+# Testa o endpoint da aplicação a cada segundo
+watch -n 1 curl -I http://127.0.0.1:8090/swagger-ui.html
+```
+
+![Console com a saída do monitoramento da aplicação](docs/images/Tarefa3-Console_com_a_saida_do_monitoramento_da_aplicacao.png)
+
+3) Com os terminais de monitoramento em execução, abra outro terminal e execute os comandos listados abaixo para gerar uma nova imagem que contemple alguma alteração da aplicação e na sequência, implante-a como serviço.
+
+```shell
+# Edite o arquivo docker-stack.yml para alterar a versão da imagem De "1.0.0" Para "2.0.0"
+vi docker-stack.yml
+:wq
+
+# Construa a imagem docker da aplicação, versionando-a em 2.0.0
+docker build --tag spring-boot-sample-hateoas:2.0.0 .
+
+# Implanta a atualiza a aplicação já em execução
+docker stack deploy --compose-file docker-stack.yml BRAVI
+```
+
+![Console com a saída do monitoramento da aplicação durante a atualização](docs/images/Tarefa3-Console_com_a_saida_do_monitoramento_da_aplicacao_durante_a_atualizacao.png)
+
+>**Nota:** Ignore o warning exibido durante a atualização do serviço, pois isso é devido a não configuração de um registry (fora do escopo da tarefa), sendo necessário em ambiente clusterizado.
 
 ## Referências
 
