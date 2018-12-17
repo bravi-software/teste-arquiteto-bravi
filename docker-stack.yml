@@ -1,0 +1,36 @@
+version: '3.5'
+services:
+  spring-boot-sample-hateoas:
+    image: spring-boot-sample-hateoas:1.0.0
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx256m
+      - DATASOURCE_URL=jdbc:postgresql://postgres-test:5432/postgres
+      - DATASOURCE_USERNAME=postgres
+      - DATASOURCE_PASSWORD=postgres
+    ports:
+      - 8090:8090
+    networks:
+      - rede
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 5
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 60s
+        max_failure_ratio: 0.5
+
+networks:
+  rede:
+    driver: overlay
